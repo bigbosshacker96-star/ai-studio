@@ -34,6 +34,23 @@ MISTRAL_API_KEY=sk-... npm start
 
 key থাকলে Mistral (mistral-small-latest) ব্যবহার হবে, না থাকলে ফ্রি fallback।
 
+### API key protection (নিজের API লক করতে)
+
+```bash
+API_SECRET=my-secret-key-123 npm start
+```
+
+সেট করলে Direct API call-এ `x-api-key: my-secret-key-123` হেডার লাগবে:
+
+```bash
+curl -X POST https://your-url.onrender.com/api/chat \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: my-secret-key-123" \
+  -d '{"messages":[{"role":"user","content":"hello"}]}'
+```
+
+সাইটে নাম দিয়ে ঢোকা ইউজাররা অটো session টোকেন পায় — তাদের কিছু করতে হয় না।
+
 ## ফোল্ডার
 
 ```
@@ -55,7 +72,9 @@ ai-web/
 - 🥰 **Girlfriend mood** — Chat ট্যাবে mood সিলেক্ট করুন (Normal / Girlfriend "Meera") — sweet, caring companion হয়ে যায়
 - 📥 **Image download** — জেনারেট করা ইমেজ এক ক্লিকে ডাউনলোড
 - 🔐 **Admin Panel** — পাসওয়ার্ড দিয়ে লগইন, ইউজার লিস্ট + স্ট্যাটস + ডিলিট
-- ✨ **নতুন ডিজাইন** — gradient glassmorphism, অ্যানিমেশন, মোবাইল রেসপন্সিভ
+- ✨ **৪টা ডিজাইন থিম** — সাইটে উপরের ডান কোণায় **⋮ (থ্রি-ডট)** বাটনে ট্যাপ করে ডিজাইন বদলান (🌌 Cyberpunk / ☀️ Light / 💜 Purple / 🌿 Mint) — সিলেকশন সেভ হয়ে থাকে
+- 🔑 **API key protection** — `API_SECRET` env সেট করলে AI API শুধু আপনার key বা সাইটে লগইন করা ইউজাররা ব্যবহার করতে পারবে
+- 🚦 **Rate limit** — প্রতি IP-তে মিনিটে ৪০টা রিকোয়েস্ট
 
 ## API (একই সার্ভার দিয়ে নিজের API বানাতে পারবেন)
 

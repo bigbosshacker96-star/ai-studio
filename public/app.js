@@ -15,9 +15,10 @@ function showToast(text) {
   setTimeout(() => (toast.hidden = true), 2200);
 }
 
-async function api(url, body, keyHeader) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (keyHeader) headers['x-api-key'] = keyHeader;
+async function api(url, body, extra = {}) {
+  const headers = { 'Content-Type': 'application/json', ...extra };
+  const session = localStorage.getItem('ai_session');
+  if (session) headers['x-session'] = session;
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
@@ -75,7 +76,8 @@ async function runChat({ box, input, send, endpoint }) {
 
   try {
     const apiKey = $('mistralKey') ? $('mistralKey').value.trim() : '';
-    const data = await api(endpoint, { messages: [...state.chatHistory, { role: 'user', content: prompt }], mood: state.mood }, apiKey);
+    const extra = apiKey ? { 'x-api-key': apiKey } : {};
+    const data = await api(endpoint, { messages: [...state.chatHistory, { role: 'user', content: prompt }], mood: state.mood }, extra);
     loadingEl.remove();
     addMsg(box, 'bot', data.reply, true);
     state.chatHistory.push({ role: 'user', content: prompt });
@@ -136,7 +138,8 @@ async function login() {
     return;
   }
   try {
-    await api('/api/users/register', { username: name });
+    const data = await api('/api/users/register', { username: name });
+    if (data.session) localStorage.setItem('ai_session', data.session);
     localStorage.setItem('ai_username', name);
     state.username = name;
     $('loginError').textContent = '';
@@ -229,6 +232,33 @@ $('saveKey').addEventListener('click', () => {
 
 if (state.username) {
   api('/api/users/register', { username: state.username })
-    .then(enterApp)
+    .then((data) => {
+      if (data.session) localStorage.setItem('ai_session', data.session);
+      enterApp();
+    })
     .catch(() => {});
+}
+
+function setTheme(theme) {
+  document.body.dataset.theme = theme;
+  localStorage.setItem('ai_theme', theme);
+}
+
+setTheme(localStorage.getItem('ai_theme') || 'cyberpunk');
+
+const themeBtn = $('themeBtn');
+const themeMenu = $('themeMenu');
+if (themeBtn && themeMenu) {
+  themeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    themeMenu.hidden = !themeMenu.hidden;
+  });
+  themeMenu.querySelectorAll('button').forEach((opt) => {
+    opt.addEventListener('click', () => {
+      setTheme(opt.dataset.themeSet);
+      themeMenu.hidden = true;
+      showToast('✨ Design changed: ' + opt.textContent.trim());
+    });
+  });
+  document.addEventListener('click', () => (themeMenu.hidden = true));
 }

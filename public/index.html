@@ -6,7 +6,7 @@
   <title>AI Studio — Chat · Image · Code</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
-<body>
+<body data-theme="cyberpunk">
   <div class="bg-glow one"></div>
   <div class="bg-glow two"></div>
 
@@ -15,6 +15,15 @@
     <div class="nav-actions">
       <span id="userName" class="user-chip" hidden></span>
       <a href="/admin" class="admin-link" title="Admin panel">🔐</a>
+      <div class="menu-wrap">
+        <button id="themeBtn" class="menu-btn" title="Change design">⋮</button>
+        <div id="themeMenu" class="theme-menu" hidden>
+          <button data-theme-set="cyberpunk">🌌 Cyberpunk Neon</button>
+          <button data-theme-set="light">☀️ Clean Light</button>
+          <button data-theme-set="purple">💜 Purple Dream</button>
+          <button data-theme-set="mint">🌿 Fresh Mint</button>
+        </div>
+      </div>
     </div>
   </nav>
 
