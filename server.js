@@ -224,7 +224,7 @@ app.post('/api/admin/users/delete', requireAdmin, (req, res) => {
   return res.json({ ok: true, removed });
 });
 
-app.listen(PORT, '127.0.0.1', () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`AI web app running at http://127.0.0.1:${PORT}`);
   console.log(`Admin panel: http://127.0.0.1:${PORT}/admin`);
 });
