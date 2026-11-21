@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>AI Studio — Chat · Image · Code</title>
+  <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body data-theme="cyberpunk">
@@ -11,29 +12,48 @@
   <div class="bg-glow two"></div>
 
   <nav class="topbar">
+    <button id="menuBtn" class="menu-btn" title="Menu">☰</button>
     <div class="brand">⚡ AI Studio</div>
     <div class="nav-actions">
       <span id="userName" class="user-chip" hidden></span>
-      <a href="/admin" class="admin-link" title="Admin panel">🔐</a>
-      <div class="menu-wrap">
-        <button id="themeBtn" class="menu-btn" title="Change design">⋮</button>
-        <div id="themeMenu" class="theme-menu" hidden>
-          <button data-theme-set="cyberpunk">🌌 Cyberpunk Neon</button>
-          <button data-theme-set="light">☀️ Clean Light</button>
-          <button data-theme-set="purple">💜 Purple Dream</button>
-          <button data-theme-set="mint">🌿 Fresh Mint</button>
-        </div>
-      </div>
     </div>
   </nav>
+
+  <div id="overlay" class="overlay" hidden></div>
+  <aside id="drawer" class="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <span class="drawer-title">Menu</span>
+      <button id="drawerClose" class="drawer-close" title="Close">✕</button>
+    </div>
+    <button id="newChatBtn" class="drawer-item new-chat">🆕 New Chat</button>
+    <div class="drawer-section">🕘 Chat History</div>
+    <div id="historyList" class="history-list"></div>
+    <div class="drawer-section">🎨 Design Theme</div>
+    <div class="theme-grid">
+      <button data-theme-set="cyberpunk">🌌 Cyberpunk</button>
+      <button data-theme-set="light">☀️ Clean Light</button>
+      <button data-theme-set="purple">💜 Purple Dream</button>
+      <button data-theme-set="mint">🌿 Fresh Mint</button>
+    </div>
+    <div class="drawer-section">🥰 Chat Mood</div>
+    <div class="mood-row">
+      <button class="mood-pill" data-mood-set="normal">💬 Normal</button>
+      <button class="mood-pill" data-mood-set="girlfriend">🥰 Girlfriend</button>
+    </div>
+    <div class="drawer-section">📥 Download App</div>
+    <button id="installBtn" class="drawer-item">📲 Install App / APK</button>
+    <button id="logoutBtn" class="drawer-item danger">🚪 Logout</button>
+    <div class="drawer-foot">© 2026 AI Studio · Developed by <b class="dev-name">Sani</b> ❤️</div>
+  </aside>
 
   <div id="loginView" class="login-view">
     <div class="login-card glass">
       <div class="login-logo">⚡</div>
       <h2>Welcome to AI Studio</h2>
-      <p>Enter a username and start using the AI — free, unlimited, no credits.</p>
+      <p>New here? Choose a name + password. Already a member? Same two = login. 💙</p>
       <input id="loginInput" type="text" placeholder="Your name (min 3 letters)" />
-      <button id="loginBtn" class="btn primary big">🚀 Start</button>
+      <input id="loginPass" type="password" placeholder="Password (min 4 characters)" />
+      <button id="loginBtn" class="btn primary big">🚀 Start / Login</button>
       <p class="error" id="loginError"></p>
     </div>
   </div>
@@ -43,28 +63,22 @@
       <button class="tab active" data-tab="chat">💬 Chat</button>
       <button class="tab" data-tab="image">🎨 Image</button>
       <button class="tab" data-tab="code">👨‍💻 Code</button>
-      <button class="tab" data-tab="settings">⚙️ Settings</button>
     </div>
 
-    <section id="tab-chat" class="panel active">
-      <div class="mood-row">
-        <span class="mood-label">Mood:</span>
-        <button class="mood-pill active" data-mood="normal">💬 Normal</button>
-        <button class="mood-pill" data-mood="girlfriend">🥰 Girlfriend</button>
-      </div>
-      <div id="chatBox" class="chat-box">
-        <div class="msg bot">👋 Hello <b></b>! Ask me anything.</div>
-      </div>
-      <div class="input-row">
-        <input id="chatInput" type="text" placeholder="Type your message..." />
-        <button id="chatSend" class="btn primary">Send</button>
+    <section id="tab-chat" class="panel chat-panel active">
+      <div id="chatBox" class="chat-box full"></div>
+      <div class="input-row chat-input-row">
+        <button id="micBtn" class="icon-btn" title="Voice input">🎤</button>
+        <button id="voiceOutBtn" class="icon-btn" title="Read replies aloud (ON/OFF)">🔊</button>
+        <input id="chatInput" type="text" placeholder="Type or speak your message..." />
+        <button id="chatSend" class="btn primary">➤</button>
       </div>
     </section>
 
     <section id="tab-image" class="panel">
       <div class="input-row">
         <input id="imagePrompt" type="text" placeholder="Describe the image you want..." />
-        <button id="imageBtn" class="btn primary">✨ Generate</button>
+        <button id="imageBtn" class="btn primary">✨</button>
       </div>
       <div class="size-row">
         <label>Width <input type="number" id="imgWidth" value="1024" min="256" max="1536" /></label>
@@ -78,35 +92,20 @@
     </section>
 
     <section id="tab-code" class="panel">
-      <div id="codeBox" class="chat-box">
-        <div class="msg bot">👨‍💻 Describe what you want to build and I'll write the code for you.</div>
-      </div>
+      <div id="codeBox" class="chat-box"></div>
       <div class="input-row">
         <input id="codeInput" type="text" placeholder="e.g. write a python script to rename files..." />
-        <button id="codeSend" class="btn primary">⚡ Generate Code</button>
-      </div>
-    </section>
-
-    <section id="tab-settings" class="panel">
-      <div class="settings-card glass">
-        <h3>⚙️ Settings</h3>
-        <label class="field">
-          <span>Use your own Mistral API key (optional — free AI works without it)</span>
-          <input id="mistralKey" type="password" placeholder="sk-..." />
-        </label>
-        <button id="saveKey" class="btn primary">💾 Save</button>
-        <p class="hint">Your key is stored only in your browser (localStorage) and sent only for AI requests. It is never saved on the server.</p>
-        <hr class="divider" />
-        <p class="hint">💡 <b>Girlfriend mood</b>: switch the mood in the Chat tab — the AI becomes a sweet, caring companion. 💬 Ask anything — the AI tries to fulfill every request in a safe way.</p>
+        <button id="codeSend" class="btn primary">⚡</button>
       </div>
     </section>
   </main>
 
-  <footer class="footer">
-    © 2026 AI Studio · Developed by <b class="dev-name">Sani</b> ❤️
-  </footer>
-
   <div id="toast" class="toast" hidden></div>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol === 'https:') {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
   <script src="/app.js"></script>
 </body>
 </html>

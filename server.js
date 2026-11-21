@@ -190,6 +190,37 @@ function registerUser(username) {
   return user;
 }
 
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(`${password}::ai-studio-salt`).digest('hex');
+}
+
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || typeof username !== 'string' || username.trim().length < 3) {
+    return res.status(400).json({ error: 'username must be at least 3 characters' });
+  }
+  if (!password || typeof password !== 'string' || password.length < 4) {
+    return res.status(400).json({ error: 'password must be at least 4 characters' });
+  }
+  const name = username.trim();
+  const hash = hashPassword(password);
+  let user = db.users.find((u) => u.username === name);
+  if (!user) {
+    user = registerUser(name);
+  }
+  if (!user.passwordHash) {
+    user.passwordHash = hash;
+    saveDb();
+  } else if (user.passwordHash !== hash) {
+    return res.status(401).json({ error: 'Wrong password for this username' });
+  }
+  const session = crypto.randomBytes(16).toString('hex');
+  SESSIONS.add(session);
+  db.sessions = [...SESSIONS];
+  saveDb();
+  return res.json({ user, session });
+});
+
 app.post('/api/users/register', (req, res) => {
   const { username } = req.body || {};
   if (!username || typeof username !== 'string' || username.trim().length < 3) {
@@ -201,6 +232,16 @@ app.post('/api/users/register', (req, res) => {
   db.sessions = [...SESSIONS];
   saveDb();
   return res.json({ user, session });
+});
+
+app.post('/api/logout', (req, res) => {
+  const session = (req.headers['x-session'] || '').trim();
+  if (session && SESSIONS.has(session)) {
+    SESSIONS.delete(session);
+    db.sessions = [...SESSIONS];
+    saveDb();
+  }
+  return res.json({ ok: true });
 });
 
 app.post('/api/usage', (req, res) => {
