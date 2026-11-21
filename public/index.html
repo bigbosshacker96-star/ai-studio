@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Studio — Chat · Image · Code</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <nav class="topbar">
+    <div class="brand">⚡ AI Studio</div>
+    <div class="nav-actions">
+      <span id="userName" class="user-chip" hidden></span>
+      <a href="/admin" class="admin-link" title="Admin panel">🔐</a>
+    </div>
+  </nav>
+
+  <div id="loginView" class="login-view">
+    <div class="login-card">
+      <h2>Welcome to AI Studio</h2>
+      <p>Enter a username to start using the AI for free.</p>
+      <input id="loginInput" type="text" placeholder="Your name (min 3 letters)" />
+      <button id="loginBtn" class="btn primary">Start</button>
+      <p class="error" id="loginError"></p>
+    </div>
+  </div>
+
+  <main id="appView" hidden>
+    <div class="tabs">
+      <button class="tab active" data-tab="chat">💬 Chat</button>
+      <button class="tab" data-tab="image">🎨 Image</button>
+      <button class="tab" data-tab="code">👨‍💻 Code</button>
+      <button class="tab" data-tab="settings">⚙️ Settings</button>
+    </div>
+
+    <section id="tab-chat" class="panel active">
+      <div id="chatBox" class="chat-box">
+        <div class="msg bot">👋 Hello <b></b>! Ask me anything.</div>
+      </div>
+      <div class="input-row">
+        <input id="chatInput" type="text" placeholder="Type your message..." />
+        <button id="chatSend" class="btn primary">Send</button>
+      </div>
+    </section>
+
+    <section id="tab-image" class="panel">
+      <div class="input-row">
+        <input id="imagePrompt" type="text" placeholder="Describe the image you want..." />
+        <button id="imageBtn" class="btn primary">Generate</button>
+      </div>
+      <div id="imageResult" class="image-result"><p class="hint">Your generated image will appear here.</p></div>
+      <div class="size-row">
+        <label>Width <input type="number" id="imgWidth" value="1024" min="256" max="1536" /></label>
+        <label>Height <input type="number" id="imgHeight" value="1024" min="256" max="1536" /></label>
+      </div>
+    </section>
+
+    <section id="tab-code" class="panel">
+      <div id="codeBox" class="chat-box">
+        <div class="msg bot">👨‍💻 Describe what you want to build and I'll write the code.</div>
+      </div>
+      <div class="input-row">
+        <input id="codeInput" type="text" placeholder="e.g. write a python script to rename files..." />
+        <button id="codeSend" class="btn primary">Generate</button>
+      </div>
+    </section>
+
+    <section id="tab-settings" class="panel">
+      <div class="settings-card">
+        <h3>Settings</h3>
+        <label class="field">
+          <span>Provider (server default is a free AI provider)</span>
+        </label>
+        <label class="field">
+          <span>Use your own Mistral API key (optional)</span>
+          <input id="mistralKey" type="password" placeholder="sk-..." value="" />
+        </label>
+        <button id="saveKey" class="btn primary">Save</button>
+        <p class="hint">Your key is stored only in your browser (localStorage) and sent to the server only for AI requests. It is never saved on the server.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>
