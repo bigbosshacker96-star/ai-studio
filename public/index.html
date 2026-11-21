@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Studio — Chat · Image · Code</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="bg-glow one"></div>
+  <div class="bg-glow two"></div>
+
+  <nav class="topbar">
+    <div class="brand">⚡ AI Studio</div>
+    <div class="nav-actions">
+      <span id="userName" class="user-chip" hidden></span>
+      <a href="/admin" class="admin-link" title="Admin panel">🔐</a>
+    </div>
+  </nav>
+
+  <div id="loginView" class="login-view">
+    <div class="login-card glass">
+      <div class="login-logo">⚡</div>
+      <h2>Welcome to AI Studio</h2>
+      <p>Enter a username and start using the AI — free, unlimited, no credits.</p>
+      <input id="loginInput" type="text" placeholder="Your name (min 3 letters)" />
+      <button id="loginBtn" class="btn primary big">🚀 Start</button>
+      <p class="error" id="loginError"></p>
+    </div>
+  </div>
+
+  <main id="appView" hidden>
+    <div class="tabs">
+      <button class="tab active" data-tab="chat">💬 Chat</button>
+      <button class="tab" data-tab="image">🎨 Image</button>
+      <button class="tab" data-tab="code">👨‍💻 Code</button>
+      <button class="tab" data-tab="settings">⚙️ Settings</button>
+    </div>
+
+    <section id="tab-chat" class="panel active">
+      <div class="mood-row">
+        <span class="mood-label">Mood:</span>
+        <button class="mood-pill active" data-mood="normal">💬 Normal</button>
+        <button class="mood-pill" data-mood="girlfriend">🥰 Girlfriend</button>
+      </div>
+      <div id="chatBox" class="chat-box">
+        <div class="msg bot">👋 Hello <b></b>! Ask me anything.</div>
+      </div>
+      <div class="input-row">
+        <input id="chatInput" type="text" placeholder="Type your message..." />
+        <button id="chatSend" class="btn primary">Send</button>
+      </div>
+    </section>
+
+    <section id="tab-image" class="panel">
+      <div class="input-row">
+        <input id="imagePrompt" type="text" placeholder="Describe the image you want..." />
+        <button id="imageBtn" class="btn primary">✨ Generate</button>
+      </div>
+      <div class="size-row">
+        <label>Width <input type="number" id="imgWidth" value="1024" min="256" max="1536" /></label>
+        <label>Height <input type="number" id="imgHeight" value="1024" min="256" max="1536" /></label>
+      </div>
+      <div id="imageResult" class="image-result glass"><p class="hint">Your generated image will appear here.</p></div>
+      <div class="download-row" id="downloadRow" hidden>
+        <button id="downloadBtn" class="btn primary">📥 Download Image</button>
+        <a id="openFull" class="btn ghost" target="_blank" rel="noopener">🔍 Open full size</a>
+      </div>
+    </section>
+
+    <section id="tab-code" class="panel">
+      <div id="codeBox" class="chat-box">
+        <div class="msg bot">👨‍💻 Describe what you want to build and I'll write the code for you.</div>
+      </div>
+      <div class="input-row">
+        <input id="codeInput" type="text" placeholder="e.g. write a python script to rename files..." />
+        <button id="codeSend" class="btn primary">⚡ Generate Code</button>
+      </div>
+    </section>
+
+    <section id="tab-settings" class="panel">
+      <div class="settings-card glass">
+        <h3>⚙️ Settings</h3>
+        <label class="field">
+          <span>Use your own Mistral API key (optional — free AI works without it)</span>
+          <input id="mistralKey" type="password" placeholder="sk-..." />
+        </label>
+        <button id="saveKey" class="btn primary">💾 Save</button>
+        <p class="hint">Your key is stored only in your browser (localStorage) and sent only for AI requests. It is never saved on the server.</p>
+        <hr class="divider" />
+        <p class="hint">💡 <b>Girlfriend mood</b>: switch the mood in the Chat tab — the AI becomes a sweet, caring companion. 💬 Ask anything — the AI tries to fulfill every request in a safe way.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    © 2026 AI Studio · Developed by <b class="dev-name">Sani</b> ❤️
+  </footer>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>

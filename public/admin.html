@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel — AI Studio</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="bg-glow one"></div>
+  <div class="bg-glow two"></div>
+
+  <nav class="topbar">
+    <div class="brand">🔐 Admin Panel</div>
+    <div class="nav-actions">
+      <a href="/" class="admin-link" title="Back to app">← App</a>
+      <button class="btn logout" id="logoutBtn" hidden>Logout</button>
+    </div>
+  </nav>
+
+  <div class="login-wrap" id="loginWrap" style="display:flex">
+    <div class="login-card glass">
+      <h2>Admin Login</h2>
+      <p>Enter the admin password to continue.</p>
+      <input id="adminPass" type="password" placeholder="Password" />
+      <button id="loginBtn" class="btn primary">Login</button>
+      <p class="error" id="loginError"></p>
+    </div>
+  </div>
+
+  <div class="admin-wrap" id="adminWrap" hidden>
+    <div class="admin-card">
+      <h3>📊 Overview</h3>
+      <div class="stats-grid">
+        <div class="stat"><div class="num" id="statUsers">0</div><div class="lbl">Users</div></div>
+        <div class="stat"><div class="num" id="statChats">0</div><div class="lbl">Chats</div></div>
+        <div class="stat"><div class="num" id="statImages">0</div><div class="lbl">Images</div></div>
+        <div class="stat"><div class="num" id="statCodes">0</div><div class="lbl">Code Runs</div></div>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h3>👥 Users</h3>
+      <div class="input-row">
+        <input id="refreshInput" type="text" placeholder="Search by username..." />
+        <button id="refreshBtn" class="btn primary">Search</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Joined</th>
+            <th>Chats</th>
+            <th>Images</th>
+            <th>Code</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="userRows"></tbody>
+      </table>
+      <p class="hint" id="userCount"></p>
+    </div>
+  </div>
+
+  <footer class="footer">
+    © 2026 AI Studio Admin · Developed by <b class="dev-name">Sani</b> ❤️
+  </footer>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/admin.js"></script>
+</body>
+</html>
