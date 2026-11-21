@@ -1,8 +1,11 @@
-const username = localStorage.getItem('ai_username') || '';
 const state = {
-  username,
-  chatHistory: [],
+  username: localStorage.getItem('ai_username') || '',
+  password: localStorage.getItem('ai_pass') || '',
   mood: localStorage.getItem('ai_mood') || 'normal',
+  voiceOn: localStorage.getItem('ai_voice') === '1',
+  chatHistory: [],
+  sessions: [],
+  currentSessionId: null,
   lastImage: null
 };
 
@@ -24,6 +27,95 @@ async function api(url, body, extra = {}) {
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
 }
+
+/* ---------- theme ---------- */
+
+function setTheme(theme) {
+  document.body.dataset.theme = theme;
+  localStorage.setItem('ai_theme', theme);
+}
+setTheme(localStorage.getItem('ai_theme') || 'cyberpunk');
+
+/* ---------- chat sessions (like ChatGPT) ---------- */
+
+function loadSessions() {
+  try {
+    state.sessions = JSON.parse(localStorage.getItem('ai_chat_sessions') || '[]');
+  } catch {
+    state.sessions = [];
+  }
+}
+
+function saveSessions() {
+  localStorage.setItem('ai_chat_sessions', JSON.stringify(state.sessions.slice(0, 50)));
+}
+
+function getCurrentSession() {
+  return state.sessions.find((s) => s.id === state.currentSessionId) || null;
+}
+
+function newChat() {
+  state.chatHistory = [];
+  state.currentSessionId = null;
+  renderMessages('chatBox', []);
+  closeDrawer();
+  renderHistory();
+  $('chatInput').focus();
+}
+
+function openOrCreateSession() {
+  let s = getCurrentSession();
+  if (!s) {
+    s = { id: `${Date.now()}`, title: 'New Chat', messages: [] };
+    state.sessions.unshift(s);
+    state.currentSessionId = s.id;
+    saveSessions();
+  }
+  return s;
+}
+
+function renderHistory() {
+  const list = $('historyList');
+  list.innerHTML = '';
+  if (state.sessions.length === 0) {
+    list.innerHTML = '<p class="hint empty">No chats yet — send your first message!</p>';
+    return;
+  }
+  state.sessions.forEach((s) => {
+    const item = document.createElement('button');
+    item.className = 'history-item' + (s.id === state.currentSessionId ? ' active' : '');
+    const title = document.createElement('span');
+    title.textContent = s.title.length > 34 ? s.title.slice(0, 34) + '…' : s.title;
+    const del = document.createElement('span');
+    del.className = 'history-del';
+    del.textContent = '🗑';
+    del.title = 'Delete';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.sessions = state.sessions.filter((x) => x.id !== s.id);
+      if (state.currentSessionId === s.id) {
+        state.currentSessionId = null;
+        state.chatHistory = [];
+        renderMessages('chatBox', []);
+      }
+      saveSessions();
+      renderHistory();
+    });
+    item.appendChild(title);
+    item.appendChild(del);
+    item.addEventListener('click', () => {
+      state.currentSessionId = s.id;
+      state.chatHistory = s.messages.map((m) => ({ role: m.role, content: m.content }));
+      renderMessages('chatBox', s.messages);
+      document.querySelector('.tab[data-tab="chat"]').click();
+      closeDrawer();
+      renderHistory();
+    });
+    list.appendChild(item);
+  });
+}
+
+/* ---------- rendering ---------- */
 
 function renderMarkdown(text) {
   const div = document.createElement('div');
@@ -51,6 +143,19 @@ function renderMarkdown(text) {
   return div;
 }
 
+function renderMessages(boxId, messages) {
+  const box = $(boxId);
+  box.innerHTML = '';
+  const hello = state.mood === 'girlfriend'
+    ? `🥰 Hi ${state.username || 'cutie'}! I'm Meera, your AI companion. How was your day? 💕`
+    : `👋 Hello ${state.username || ''}! Ask me anything — I'm listening.`;
+  if (messages.length === 0) {
+    addMsg(boxId, 'bot', hello);
+    return;
+  }
+  messages.forEach((m) => addMsg(boxId, m.role === 'assistant' ? 'bot' : 'user', m.content, true));
+}
+
 function addMsg(boxId, role, content, asMarkdown) {
   const box = $(boxId);
   const el = document.createElement('div');
@@ -65,7 +170,21 @@ function addMsg(boxId, role, content, asMarkdown) {
   return el;
 }
 
-async function runChat({ box, input, send, endpoint }) {
+function speak(text) {
+  if (!state.voiceOn || !('speechSynthesis' in window)) return;
+  const clean = text
+    .replace(/```[\s\S]*?```/g, ' code block ')
+    .replace(/[*_#`>-]/g, '')
+    .slice(0, 300);
+  const u = new SpeechSynthesisUtterance(clean);
+  u.lang = 'bn-BD';
+  u.rate = 1;
+  speechSynthesis.speak(u);
+}
+
+/* ---------- chat send ---------- */
+
+async function runChat({ box, input, send, endpoint, moodEnabled }) {
   const prompt = input.value.trim();
   if (!prompt) return;
   input.value = '';
@@ -74,15 +193,24 @@ async function runChat({ box, input, send, endpoint }) {
   loadingEl.classList.add('loading');
   send.disabled = true;
 
+  const session = openOrCreateSession();
+  if (session.messages.length === 0) {
+    session.title = prompt.slice(0, 40);
+  }
+
   try {
-    const apiKey = $('mistralKey') ? $('mistralKey').value.trim() : '';
+    const apiKey = localStorage.getItem('mistral_key') || '';
     const extra = apiKey ? { 'x-api-key': apiKey } : {};
-    const data = await api(endpoint, { messages: [...state.chatHistory, { role: 'user', content: prompt }], mood: state.mood }, extra);
+    const body = { messages: [...state.chatHistory, { role: 'user', content: prompt }] };
+    if (moodEnabled) body.mood = state.mood;
+    const data = await api(endpoint, body, extra);
     loadingEl.remove();
     addMsg(box, 'bot', data.reply, true);
-    state.chatHistory.push({ role: 'user', content: prompt });
-    state.chatHistory.push({ role: 'assistant', content: data.reply });
-    if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
+    speak(data.reply);
+    session.messages.push({ role: 'user', content: prompt }, { role: 'assistant', content: data.reply });
+    state.chatHistory = session.messages.slice(-20).map((m) => ({ role: m.role, content: m.content }));
+    saveSessions();
+    renderHistory();
     api('/api/usage', { username: state.username, type: endpoint.split('/').pop() }).catch(() => {});
   } catch (err) {
     loadingEl.remove();
@@ -93,6 +221,8 @@ async function runChat({ box, input, send, endpoint }) {
   }
 }
 
+/* ---------- image ---------- */
+
 async function generateImage() {
   const prompt = $('imagePrompt').value.trim();
   if (!prompt) return;
@@ -101,11 +231,13 @@ async function generateImage() {
   $('imageBtn').disabled = true;
 
   try {
+    const apiKey = localStorage.getItem('mistral_key') || '';
+    const extra = apiKey ? { 'x-api-key': apiKey } : {};
     const data = await api('/api/image', {
       prompt,
       width: Number($('imgWidth').value) || 1024,
       height: Number($('imgHeight').value) || 1024
-    });
+    }, extra);
     result.innerHTML = '';
     const img = document.createElement('img');
     img.src = data.url;
@@ -122,26 +254,83 @@ async function generateImage() {
   }
 }
 
-document.querySelectorAll('.tab').forEach((tab) => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
-    tab.classList.add('active');
-    $(`tab-${tab.dataset.tab}`).classList.add('active');
+/* ---------- drawer ---------- */
+
+let deferredInstall = null;
+
+function openDrawer() {
+  $('drawer').classList.add('open');
+  $('drawer').setAttribute('aria-hidden', 'false');
+  $('overlay').hidden = false;
+  renderHistory();
+}
+
+function closeDrawer() {
+  $('drawer').classList.remove('open');
+  $('drawer').setAttribute('aria-hidden', 'true');
+  $('overlay').hidden = true;
+}
+
+/* ---------- voice input ---------- */
+
+function setupVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    $('micBtn').classList.add('off');
+    return;
+  }
+  const rec = new SpeechRecognition();
+  rec.lang = navigator.language && navigator.language.startsWith('bn') ? 'bn-BD' : 'en-US';
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  let listening = false;
+
+  $('micBtn').addEventListener('click', () => {
+    if (listening) return;
+    try {
+      rec.start();
+      listening = true;
+      $('micBtn').classList.add('listening');
+      showToast('🎤 Listening... speak now');
+    } catch {
+      listening = false;
+    }
   });
-});
+
+  rec.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    $('chatInput').value = text;
+  };
+  rec.onend = () => {
+    listening = false;
+    $('micBtn').classList.remove('listening');
+  };
+  rec.onerror = () => {
+    listening = false;
+    $('micBtn').classList.remove('listening');
+  };
+}
+
+/* ---------- login ---------- */
 
 async function login() {
   const name = $('loginInput').value.trim();
+  const pass = $('loginPass').value;
   if (name.length < 3) {
-    $('loginError').textContent = 'Please enter at least 3 characters.';
+    $('loginError').textContent = 'Name must be at least 3 characters.';
+    return;
+  }
+  if (pass.length < 4) {
+    $('loginError').textContent = 'Password must be at least 4 characters.';
     return;
   }
   try {
-    const data = await api('/api/users/register', { username: name });
+    const data = await api('/api/login', { username: name, password: pass });
     if (data.session) localStorage.setItem('ai_session', data.session);
     localStorage.setItem('ai_username', name);
+    localStorage.setItem('ai_pass', pass);
     state.username = name;
+    state.password = pass;
     $('loginError').textContent = '';
     enterApp();
   } catch (err) {
@@ -155,23 +344,53 @@ function enterApp() {
   const chip = $('userName');
   chip.textContent = state.username;
   chip.hidden = false;
-  const greeting = document.querySelector('#chatBox .msg.bot b');
-  if (greeting) greeting.textContent = state.username;
-  if (state.mood === 'girlfriend') {
-    const box = $('chatBox');
-    box.innerHTML = '';
-    addMsg('chatBox', 'bot', `🥰 Hi ${state.username}! I'm Meera, your AI companion. How was your day? 💕`);
+  loadSessions();
+  const session = getCurrentSession();
+  renderMessages('chatBox', session ? session.messages : []);
+  if (session) {
+    state.chatHistory = session.messages.slice(-20).map((m) => ({ role: m.role, content: m.content }));
   }
+  renderHistory();
+  setupVoice();
 }
 
+function logout() {
+  api('/api/logout', {}).catch(() => {});
+  localStorage.removeItem('ai_session');
+  localStorage.removeItem('ai_username');
+  localStorage.removeItem('ai_pass');
+  state.username = '';
+  state.password = '';
+  location.reload();
+}
+
+/* ---------- events ---------- */
+
 $('loginBtn').addEventListener('click', login);
-$('loginInput').addEventListener('keydown', (e) => e.key === 'Enter' && login());
+$('loginPass').addEventListener('keydown', (e) => e.key === 'Enter' && login());
 
-$('chatSend').addEventListener('click', () => runChat({ box: 'chatBox', input: $('chatInput'), send: $('chatSend'), endpoint: '/api/chat' }));
-$('chatInput').addEventListener('keydown', (e) => e.key === 'Enter' && runChat({ box: 'chatBox', input: $('chatInput'), send: $('chatSend'), endpoint: '/api/chat' }));
+$('menuBtn').addEventListener('click', openDrawer);
+$('drawerClose').addEventListener('click', closeDrawer);
+$('overlay').addEventListener('click', closeDrawer);
 
-$('codeSend').addEventListener('click', () => runChat({ box: 'codeBox', input: $('codeInput'), send: $('codeSend'), endpoint: '/api/code' }));
-$('codeInput').addEventListener('keydown', (e) => e.key === 'Enter' && runChat({ box: 'codeBox', input: $('codeInput'), send: $('codeSend'), endpoint: '/api/code' }));
+$('newChatBtn').addEventListener('click', newChat);
+$('logoutBtn').addEventListener('click', logout);
+
+const voiceOutBtn = $('voiceOutBtn');
+voiceOutBtn.classList.toggle('active', state.voiceOn);
+voiceOutBtn.addEventListener('click', () => {
+  state.voiceOn = !state.voiceOn;
+  localStorage.setItem('ai_voice', state.voiceOn ? '1' : '0');
+  voiceOutBtn.classList.toggle('active', state.voiceOn);
+  if (!state.voiceOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+  showToast(state.voiceOn ? '🔊 Voice replies ON' : '🔇 Voice replies OFF');
+});
+
+$('chatSend').addEventListener('click', () => runChat({ box: 'chatBox', input: $('chatInput'), send: $('chatSend'), endpoint: '/api/chat', moodEnabled: true }));
+$('chatInput').addEventListener('keydown', (e) => e.key === 'Enter' && runChat({ box: 'chatBox', input: $('chatInput'), send: $('chatSend'), endpoint: '/api/chat', moodEnabled: true }));
+
+$('codeSend').addEventListener('click', () => runChat({ box: 'codeBox', input: $('codeInput'), send: $('codeSend'), endpoint: '/api/code', moodEnabled: false }));
+$('codeInput').addEventListener('keydown', (e) => e.key === 'Enter' && runChat({ box: 'codeBox', input: $('codeInput'), send: $('codeSend'), endpoint: '/api/code', moodEnabled: false }));
 
 $('imageBtn').addEventListener('click', generateImage);
 
@@ -195,70 +414,68 @@ $('downloadBtn').addEventListener('click', async () => {
   }
 });
 
-const moodDefault = document.querySelector(`.mood-pill[data-mood="${state.mood}"]`) || document.querySelector('.mood-pill');
-document.querySelectorAll('.mood-pill').forEach((p) => p.classList.remove('active'));
-if (moodDefault) moodDefault.classList.add('active');
-
-document.querySelectorAll('.mood-pill').forEach((pill) => {
-  pill.addEventListener('click', () => {
-    document.querySelectorAll('.mood-pill').forEach((p) => p.classList.remove('active'));
-    pill.classList.add('active');
-    state.mood = pill.dataset.mood;
-    localStorage.setItem('ai_mood', state.mood);
-    state.chatHistory = [];
-    const box = $('chatBox');
-    box.innerHTML = '';
-    const hello = state.mood === 'girlfriend'
-      ? `🥰 Hi ${state.username || 'cutie'}! I'm Meera, your AI companion. How was your day? 💕`
-      : `👋 Hello! Ask me anything.`;
-    addMsg('chatBox', 'bot', hello);
-    showToast(state.mood === 'girlfriend' ? '🥰 Girlfriend mood ON' : '💬 Normal mood');
+document.querySelectorAll('.theme-grid button').forEach((opt) => {
+  opt.addEventListener('click', () => {
+    setTheme(opt.dataset.themeSet);
+    showToast('✨ Design changed: ' + opt.textContent.trim());
   });
 });
 
-function applyGreeting() {
-  if (state.mood === 'girlfriend') {
-    addMsg('chatBox', 'bot', `🥰 Hi ${state.username || 'cutie'}! I'm Meera, your AI companion. How was your day? 💕`);
+function setMood(mood) {
+  state.mood = mood;
+  localStorage.setItem('ai_mood', mood);
+  state.chatHistory = [];
+  document.querySelectorAll('.mood-pill').forEach((p) => p.classList.toggle('active', p.dataset.moodSet === mood));
+  state.currentSessionId = null;
+  renderMessages('chatBox', []);
+  renderHistory();
+}
+
+document.querySelectorAll('.mood-pill').forEach((p) => p.classList.toggle('active', p.dataset.moodSet === state.mood));
+
+document.querySelectorAll('[data-mood-set]').forEach((pill) => {
+  pill.addEventListener('click', () => {
+    setMood(pill.dataset.moodSet);
+    showToast(pill.dataset.moodSet === 'girlfriend' ? '🥰 Girlfriend mood ON' : '💬 Normal mood');
+  });
+});
+
+document.querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
+    tab.classList.add('active');
+    $(`tab-${tab.dataset.tab}`).classList.add('active');
+  });
+});
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstall = e;
+});
+
+$('installBtn').addEventListener('click', async () => {
+  if (deferredInstall) {
+    deferredInstall.prompt();
+    const { outcome } = await deferredInstall.userChoice;
+    if (outcome === 'accepted') showToast('📲 App installed!');
+    deferredInstall = null;
+    return;
+  }
+  showToast('📲 Chrome menu (⋮) → "Add to Home screen" tap korun — app er moto install hobe');
+});
+
+/* ---------- auto login ---------- */
+
+async function autoLogin() {
+  if (!state.username || !state.password) return;
+  try {
+    const data = await api('/api/login', { username: state.username, password: state.password });
+    if (data.session) localStorage.setItem('ai_session', data.session);
+    enterApp();
+  } catch {
+    localStorage.removeItem('ai_session');
   }
 }
 
-$('mistralKey').value = localStorage.getItem('mistral_key') || '';
-$('saveKey').addEventListener('click', () => {
-  const key = $('mistralKey').value.trim();
-  if (key) localStorage.setItem('mistral_key', key);
-  else localStorage.removeItem('mistral_key');
-  showToast('✅ Settings saved');
-});
-
-if (state.username) {
-  api('/api/users/register', { username: state.username })
-    .then((data) => {
-      if (data.session) localStorage.setItem('ai_session', data.session);
-      enterApp();
-    })
-    .catch(() => {});
-}
-
-function setTheme(theme) {
-  document.body.dataset.theme = theme;
-  localStorage.setItem('ai_theme', theme);
-}
-
-setTheme(localStorage.getItem('ai_theme') || 'cyberpunk');
-
-const themeBtn = $('themeBtn');
-const themeMenu = $('themeMenu');
-if (themeBtn && themeMenu) {
-  themeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    themeMenu.hidden = !themeMenu.hidden;
-  });
-  themeMenu.querySelectorAll('button').forEach((opt) => {
-    opt.addEventListener('click', () => {
-      setTheme(opt.dataset.themeSet);
-      themeMenu.hidden = true;
-      showToast('✨ Design changed: ' + opt.textContent.trim());
-    });
-  });
-  document.addEventListener('click', () => (themeMenu.hidden = true));
-}
+autoLogin();
