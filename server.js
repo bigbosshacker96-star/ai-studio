@@ -1,16 +1,18 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const API_SECRET = process.env.API_SECRET || '';
 const DATA_FILE = path.join(__dirname, 'data.json');
 
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const db = { users: [] };
+const db = { users: [], sessions: [] };
 if (fs.existsSync(DATA_FILE)) {
   try {
     Object.assign(db, JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')));
@@ -34,6 +36,36 @@ function requireAdmin(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   next();
+}
+
+const SESSIONS = new Set(db.sessions || []);
+const RATE_LIMIT_MAX = 40;
+const RATE_WINDOW_MS = 60000;
+const rateMap = new Map();
+
+function rateLimit(req, res, next) {
+  const ip = req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const entry = rateMap.get(ip) || { count: 0, start: now };
+  if (now - entry.start > RATE_WINDOW_MS) {
+    entry.count = 0;
+    entry.start = now;
+  }
+  entry.count += 1;
+  rateMap.set(ip, entry);
+  if (entry.count > RATE_LIMIT_MAX) {
+    return res.status(429).json({ error: 'Too many requests, try again in a minute.' });
+  }
+  next();
+}
+
+function requireAccess(req, res, next) {
+  if (!API_SECRET) return next();
+  const key = (req.headers['x-api-key'] || '').trim();
+  if (key && key === API_SECRET) return next();
+  const session = (req.headers['x-session'] || '').trim();
+  if (session && SESSIONS.has(session)) return next();
+  return res.status(401).json({ error: 'API key required (x-api-key header)' });
 }
 
 const MOODS = {
@@ -119,9 +151,9 @@ async function handleText(req, res, systemPrompt) {
   }
 }
 
-app.post('/api/chat', (req, res) => handleText(req, res, null));
+app.post('/api/chat', rateLimit, requireAccess, (req, res) => handleText(req, res, null));
 
-app.post('/api/code', (req, res) =>
+app.post('/api/code', rateLimit, requireAccess, (req, res) =>
   handleText(
     req,
     res,
@@ -129,7 +161,7 @@ app.post('/api/code', (req, res) =>
   )
 );
 
-app.post('/api/image', async (req, res) => {
+app.post('/api/image', rateLimit, requireAccess, async (req, res) => {
   const { prompt } = req.body || {};
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'prompt is required' });
@@ -164,7 +196,11 @@ app.post('/api/users/register', (req, res) => {
     return res.status(400).json({ error: 'username must be at least 3 characters' });
   }
   const user = registerUser(username.trim());
-  return res.json({ user });
+  const session = crypto.randomBytes(16).toString('hex');
+  SESSIONS.add(session);
+  db.sessions = [...SESSIONS];
+  saveDb();
+  return res.json({ user, session });
 });
 
 app.post('/api/usage', (req, res) => {
