@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
+  <div class="bg-glow one"></div>
+  <div class="bg-glow two"></div>
+
   <nav class="topbar">
     <div class="brand">🔐 Admin Panel</div>
     <div class="nav-actions">
@@ -16,7 +19,7 @@
   </nav>
 
   <div class="login-wrap" id="loginWrap" style="display:flex">
-    <div class="login-card">
+    <div class="login-card glass">
       <h2>Admin Login</h2>
       <p>Enter the admin password to continue.</p>
       <input id="adminPass" type="password" placeholder="Password" />
@@ -58,6 +61,10 @@
       <p class="hint" id="userCount"></p>
     </div>
   </div>
+
+  <footer class="footer">
+    © 2026 AI Studio Admin · Developed by <b class="dev-name">Sani</b> ❤️
+  </footer>
 
   <div id="toast" class="toast" hidden></div>
   <script src="/admin.js"></script>

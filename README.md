@@ -49,11 +49,19 @@ ai-web/
     └── style.css      # সব স্টাইল (ডার্ক থিম)
 ```
 
+## ফিচার
+
+- 💬 **Chat** / 🎨 **Image** / 👨‍💻 **Code** — সব ফ্রি AI provider দিয়ে, key ছাড়াই
+- 🥰 **Girlfriend mood** — Chat ট্যাবে mood সিলেক্ট করুন (Normal / Girlfriend "Meera") — sweet, caring companion হয়ে যায়
+- 📥 **Image download** — জেনারেট করা ইমেজ এক ক্লিকে ডাউনলোড
+- 🔐 **Admin Panel** — পাসওয়ার্ড দিয়ে লগইন, ইউজার লিস্ট + স্ট্যাটস + ডিলিট
+- ✨ **নতুন ডিজাইন** — gradient glassmorphism, অ্যানিমেশন, মোবাইল রেসপন্সিভ
+
 ## API (একই সার্ভার দিয়ে নিজের API বানাতে পারবেন)
 
 | Endpoint | Method | Body |
 |---|---|---|
-| `/api/chat` | POST | `{ messages: [{role, content}] }` |
+| `/api/chat` | POST | `{ messages: [{role, content}], mood?: "normal"\|"girlfriend" }` |
 | `/api/code` | POST | `{ messages: [...] }` (কোড-ফোকাসড) |
 | `/api/image` | POST | `{ prompt, width, height }` → `{ url }` |
 | `/api/users/register` | POST | `{ username }` |

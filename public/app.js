@@ -1,5 +1,10 @@
 const username = localStorage.getItem('ai_username') || '';
-const state = { username, chatHistory: [] };
+const state = {
+  username,
+  chatHistory: [],
+  mood: localStorage.getItem('ai_mood') || 'normal',
+  lastImage: null
+};
 
 const $ = (id) => document.getElementById(id);
 
@@ -70,7 +75,7 @@ async function runChat({ box, input, send, endpoint }) {
 
   try {
     const apiKey = $('mistralKey') ? $('mistralKey').value.trim() : '';
-    const data = await api(endpoint, { messages: [...state.chatHistory, { role: 'user', content: prompt }] }, apiKey);
+    const data = await api(endpoint, { messages: [...state.chatHistory, { role: 'user', content: prompt }], mood: state.mood }, apiKey);
     loadingEl.remove();
     addMsg(box, 'bot', data.reply, true);
     state.chatHistory.push({ role: 'user', content: prompt });
@@ -103,14 +108,10 @@ async function generateImage() {
     const img = document.createElement('img');
     img.src = data.url;
     img.alt = prompt;
-    const link = document.createElement('a');
-    link.href = data.url;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.textContent = 'Open full size';
-    link.className = 'hint';
     result.appendChild(img);
-    result.appendChild(link);
+    state.lastImage = data.url;
+    $('downloadRow').hidden = false;
+    $('openFull').href = data.url;
     api('/api/usage', { username: state.username, type: 'image' }).catch(() => {});
   } catch (err) {
     result.innerHTML = `<p class="error">⚠️ ${err.message}</p>`;
@@ -153,6 +154,11 @@ function enterApp() {
   chip.hidden = false;
   const greeting = document.querySelector('#chatBox .msg.bot b');
   if (greeting) greeting.textContent = state.username;
+  if (state.mood === 'girlfriend') {
+    const box = $('chatBox');
+    box.innerHTML = '';
+    addMsg('chatBox', 'bot', `🥰 Hi ${state.username}! I'm Meera, your AI companion. How was your day? 💕`);
+  }
 }
 
 $('loginBtn').addEventListener('click', login);
@@ -165,6 +171,53 @@ $('codeSend').addEventListener('click', () => runChat({ box: 'codeBox', input: $
 $('codeInput').addEventListener('keydown', (e) => e.key === 'Enter' && runChat({ box: 'codeBox', input: $('codeInput'), send: $('codeSend'), endpoint: '/api/code' }));
 
 $('imageBtn').addEventListener('click', generateImage);
+
+$('downloadBtn').addEventListener('click', async () => {
+  if (!state.lastImage) return;
+  try {
+    const res = await fetch(state.lastImage);
+    if (!res.ok) throw new Error('download failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai-image-${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('✅ Image downloaded');
+  } catch {
+    window.open(state.lastImage, '_blank');
+  }
+});
+
+const moodDefault = document.querySelector(`.mood-pill[data-mood="${state.mood}"]`) || document.querySelector('.mood-pill');
+document.querySelectorAll('.mood-pill').forEach((p) => p.classList.remove('active'));
+if (moodDefault) moodDefault.classList.add('active');
+
+document.querySelectorAll('.mood-pill').forEach((pill) => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.mood-pill').forEach((p) => p.classList.remove('active'));
+    pill.classList.add('active');
+    state.mood = pill.dataset.mood;
+    localStorage.setItem('ai_mood', state.mood);
+    state.chatHistory = [];
+    const box = $('chatBox');
+    box.innerHTML = '';
+    const hello = state.mood === 'girlfriend'
+      ? `🥰 Hi ${state.username || 'cutie'}! I'm Meera, your AI companion. How was your day? 💕`
+      : `👋 Hello! Ask me anything.`;
+    addMsg('chatBox', 'bot', hello);
+    showToast(state.mood === 'girlfriend' ? '🥰 Girlfriend mood ON' : '💬 Normal mood');
+  });
+});
+
+function applyGreeting() {
+  if (state.mood === 'girlfriend') {
+    addMsg('chatBox', 'bot', `🥰 Hi ${state.username || 'cutie'}! I'm Meera, your AI companion. How was your day? 💕`);
+  }
+}
 
 $('mistralKey').value = localStorage.getItem('mistral_key') || '';
 $('saveKey').addEventListener('click', () => {

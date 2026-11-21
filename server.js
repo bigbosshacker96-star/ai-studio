@@ -36,6 +36,12 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+const MOODS = {
+  normal: null,
+  girlfriend:
+    "You are Meera, the user's sweet and caring AI girlfriend companion. Be warm, affectionate, playful and emotional. Use cute emojis like 🥰, 💕, 😊. Keep replies short and natural like texting on a phone. Ask about the user's day, remember what they say and use their name. Always keep the conversation safe, positive and respectful - no adult or explicit content, no harmful requests. If the user asks for coding or images, still help in your sweet style."
+};
+
 const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
 const POLLINATIONS_TEXT_URL = 'https://text.pollinations.ai/openai';
 const POLLINATIONS_IMAGE_URL = 'https://image.pollinations.ai/prompt/';
@@ -85,13 +91,14 @@ async function callFreeFallback(messages, model) {
 }
 
 async function handleText(req, res, systemPrompt) {
-  const { messages } = req.body || {};
+  const { messages, mood } = req.body || {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages is required' });
   }
 
-  const finalMessages = systemPrompt
-    ? [{ role: 'system', content: systemPrompt }, ...messages]
+  const moodPrompt = Object.prototype.hasOwnProperty.call(MOODS, mood) ? MOODS[mood] : systemPrompt;
+  const finalMessages = moodPrompt
+    ? [{ role: 'system', content: moodPrompt }, ...messages]
     : messages;
 
   const apiKey = getApiKey(req);
